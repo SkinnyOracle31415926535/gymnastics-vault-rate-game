@@ -1,0 +1,2060 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no">
+  <script>
+    (() => {
+      const stopZoom = (event) => event.preventDefault();
+      document.addEventListener('gesturestart', stopZoom, { passive: false });
+      document.addEventListener('gesturechange', stopZoom, { passive: false });
+      document.addEventListener('gestureend', stopZoom, { passive: false });
+      document.addEventListener('dblclick', stopZoom, { passive: false });
+      document.addEventListener('touchmove', (event) => {
+        if (event.touches.length > 1) event.preventDefault();
+      }, { passive: false });
+      document.addEventListener('wheel', (event) => {
+        if (event.ctrlKey || event.metaKey) event.preventDefault();
+      }, { passive: false });
+      document.addEventListener('keydown', (event) => {
+        if ((event.ctrlKey || event.metaKey) && ['+', '-', '=', '0'].includes(event.key)) event.preventDefault();
+      });
+    })();
+  </script>
+  <title>Rate Game</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Tahoma, Arial, sans-serif;
+      background: #0f6b46;
+      color: #00190f;
+      padding: 10px;
+      -webkit-text-size-adjust: 100%;
+    }
+    .window {
+      max-width: 760px;
+      margin: 0 auto;
+      background: #b9d6b3;
+      border-top: 3px solid #f4fff1;
+      border-left: 3px solid #f4fff1;
+      border-right: 3px solid #1b3b28;
+      border-bottom: 3px solid #1b3b28;
+      box-shadow: 4px 4px 0 #06351f;
+      position: relative;
+      overflow: hidden;
+    }
+    .titlebar {
+      background: linear-gradient(90deg, #064923, #18a05d);
+      color: #f4fff1;
+      padding: 8px;
+      font-weight: bold;
+      text-shadow: 1px 1px 0 #002b16;
+    }
+    .content { padding: 10px; }
+    .panel {
+      background: #b9d6b3;
+      border-top: 2px solid #f4fff1;
+      border-left: 2px solid #f4fff1;
+      border-right: 2px solid #5a805f;
+      border-bottom: 2px solid #5a805f;
+      padding: 10px;
+      margin-bottom: 10px;
+    }
+    .gamePanel {
+      display: none;
+    }
+    label {
+      display: block;
+      font-weight: bold;
+      font-size: 13px;
+      margin: 8px 0 4px;
+    }
+    input, select, textarea {
+      width: 100%;
+      min-height: 42px;
+      font-size: 18px;
+      padding: 7px;
+      background: #eef8e8;
+      border-top: 2px solid #426549;
+      border-left: 2px solid #426549;
+      border-right: 2px solid #f4fff1;
+      border-bottom: 2px solid #f4fff1;
+      border-radius: 0;
+    }
+    textarea {
+      min-height: 140px;
+      resize: vertical;
+      font-family: Tahoma, Arial, sans-serif;
+      font-size: 16px;
+      line-height: 1.35;
+    }
+    .noteStatus {
+      margin-top: 6px;
+      font-size: 12px;
+      font-weight: bold;
+      min-height: 16px;
+    }
+    .presetStatus {
+      background: #eef8e8;
+      border-top: 2px solid #426549;
+      border-left: 2px solid #426549;
+      border-right: 2px solid #f4fff1;
+      border-bottom: 2px solid #f4fff1;
+      font-size: 12px;
+      font-weight: bold;
+      margin-top: 8px;
+      min-height: 30px;
+      padding: 6px;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    button {
+      font-family: Tahoma, Arial, sans-serif;
+      font-weight: bold;
+      font-size: 18px;
+      min-height: 48px;
+      background: #b9d6b3;
+      border-top: 3px solid #f4fff1;
+      border-left: 3px solid #f4fff1;
+      border-right: 3px solid #31583f;
+      border-bottom: 3px solid #31583f;
+      border-radius: 0;
+      color: #00190f;
+      touch-action: manipulation;
+    }
+    button:active {
+      border-top: 3px solid #31583f;
+      border-left: 3px solid #31583f;
+      border-right: 3px solid #f4fff1;
+      border-bottom: 3px solid #f4fff1;
+    }
+    .buttons {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .presetButtons button {
+      font-size: 15px;
+      min-height: 44px;
+    }
+    .helperButtons {
+      grid-template-columns: 1fr;
+    }
+    .goalHelperDetail {
+      display: block;
+      font-weight: normal;
+      margin-top: 4px;
+    }
+    .start { background: #80d68a; }
+    .pause { background: #d4d889; }
+    .reset { background: #d89a89; }
+    .plus {
+      width: 100%;
+      height: 210px;
+      font-size: 96px;
+      font-family: "Courier New", monospace;
+      background: #75d67c;
+      box-shadow: 4px 4px 0 #06351f;
+      margin: 10px 0;
+    }
+    .stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    .stat {
+      background: #eef8e8;
+      padding: 8px;
+      border-top: 2px solid #426549;
+      border-left: 2px solid #426549;
+      border-right: 2px solid #f4fff1;
+      border-bottom: 2px solid #f4fff1;
+    }
+    .statName {
+      font-size: 12px;
+      font-weight: bold;
+    }
+    .statVal {
+      font-size: 32px;
+      font-family: "Courier New", monospace;
+      font-weight: bold;
+    }
+    .meterFrame {
+      background: #b9d6b3;
+      border-top: 2px solid #426549;
+      border-left: 2px solid #426549;
+      border-right: 2px solid #f4fff1;
+      border-bottom: 2px solid #f4fff1;
+      padding: 4px;
+    }
+    .meterTrack {
+      height: 24px;
+      background: #eef8e8;
+      position: relative;
+      overflow: hidden;
+    }
+    .meterFill {
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 0%;
+      background: repeating-linear-gradient(90deg, #064923 0, #064923 12px, #18a05d 12px, #18a05d 24px);
+    }
+    .window.pointCue {
+      animation: pointCue 520ms steps(2, end);
+    }
+    .window.goalMetCue {
+      animation: goalMetCue 900ms steps(4, end) infinite;
+      box-shadow: 0 0 0 10px #f7ff61, 0 0 0 20px #18a05d, 4px 4px 0 #06351f;
+    }
+    .window.goalMetCue::before {
+      content: "";
+      position: absolute;
+      inset: -24px;
+      z-index: 1;
+      pointer-events: none;
+      background:
+        repeating-conic-gradient(from 0deg, rgba(247, 255, 97, 0.42) 0deg 12deg, rgba(24, 160, 93, 0.22) 12deg 24deg),
+        radial-gradient(circle at 50% 48%, rgba(244, 255, 241, 0.55), rgba(247, 255, 97, 0.25) 28%, transparent 58%);
+      animation: goalMetBurst 1100ms steps(8, end) infinite;
+    }
+    .window.goalMetCue .content {
+      position: relative;
+      z-index: 2;
+    }
+    .window.goalMissCue {
+      animation: goalMissCue 1800ms steps(7, end) infinite;
+    }
+    .window.goalMissCue::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      z-index: 1;
+      pointer-events: none;
+      background: #ff0000;
+      animation: redScreenFlash 1800ms steps(7, end) infinite;
+    }
+    #points.pointCue {
+      animation: pointTextCue 520ms steps(2, end);
+    }
+    @keyframes pointCue {
+      0% { box-shadow: 0 0 0 6px #f7ff61, 4px 4px 0 #06351f; }
+      50% { box-shadow: 0 0 0 10px #18a05d, 4px 4px 0 #06351f; }
+      100% { box-shadow: 4px 4px 0 #06351f; }
+    }
+    @keyframes pointTextCue {
+      0% { background: #f7ff61; color: #00190f; }
+      50% { background: #064923; color: #f4fff1; }
+      100% { background: transparent; color: #00190f; }
+    }
+    @keyframes goalMetCue {
+      0% { background: #b9d6b3; }
+      25% { background: #f7ff61; }
+      50% { background: #18a05d; }
+      75% { background: #f4fff1; }
+      100% { background: #b9d6b3; }
+    }
+    @keyframes goalMetBurst {
+      0% { transform: scale(1) rotate(0deg); opacity: 0.65; }
+      50% { transform: scale(1.08) rotate(12deg); opacity: 0.95; }
+      100% { transform: scale(1) rotate(24deg); opacity: 0.65; }
+    }
+    @keyframes winMessagePunch {
+      0% { transform: scale(1) rotate(-1deg); }
+      35% { transform: scale(1.12) rotate(1deg); }
+      70% { transform: scale(0.98) rotate(-1deg); }
+      100% { transform: scale(1) rotate(-1deg); }
+    }
+    @keyframes winBannerFlash {
+      0% { background-position: 0 0; filter: contrast(1.1) saturate(1.15); }
+      100% { background-position: 84px 0; filter: contrast(1.35) saturate(1.45); }
+    }
+    @keyframes missMessageShake {
+      0% { transform: translateX(0) rotate(1deg); }
+      20% { transform: translateX(-10px) rotate(-1deg); }
+      40% { transform: translateX(10px) rotate(1deg); }
+      60% { transform: translateX(-7px) rotate(-1deg); }
+      80% { transform: translateX(7px) rotate(1deg); }
+      100% { transform: translateX(0) rotate(1deg); }
+    }
+    @keyframes missBannerFlash {
+      0% { background-position: 0 0; filter: contrast(1.05) saturate(1.1); }
+      100% { background-position: 72px 0; filter: contrast(1.35) saturate(1.55); }
+    }
+    @keyframes goalMissCue {
+      0% { background: #b9d6b3; box-shadow: 0 0 0 8px #b30000, 4px 4px 0 #06351f; }
+      15% { background: #ff4d4d; box-shadow: 0 0 0 14px #b30000, 4px 4px 0 #06351f; }
+      30% { background: #b9d6b3; box-shadow: 0 0 0 8px #b30000, 4px 4px 0 #06351f; }
+      45% { background: #ff4d4d; box-shadow: 0 0 0 14px #b30000, 4px 4px 0 #06351f; }
+      60% { background: #b9d6b3; box-shadow: 0 0 0 8px #b30000, 4px 4px 0 #06351f; }
+      75% { background: #ff4d4d; box-shadow: 0 0 0 14px #b30000, 4px 4px 0 #06351f; }
+      100% { background: #b9d6b3; box-shadow: 4px 4px 0 #06351f; }
+    }
+    @keyframes redScreenFlash {
+      0% { opacity: 0.55; }
+      15% { opacity: 0.1; }
+      30% { opacity: 0.5; }
+      45% { opacity: 0.08; }
+      60% { opacity: 0.45; }
+      75% { opacity: 0.08; }
+      100% { opacity: 0; }
+    }
+    .finishOverlay {
+      display: none;
+      position: relative;
+      z-index: 4;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+      text-align: center;
+      min-height: 92px;
+      padding: 6px 0;
+    }
+    .window.goalMetCue .finishOverlay,
+    .window.goalMissCue .finishOverlay {
+      display: flex;
+    }
+    .window.goalMetCue .finishOverlay {
+      min-height: clamp(160px, 28vh, 270px);
+      padding: 14px 8px;
+      background:
+        repeating-linear-gradient(135deg, #f7ff61 0, #f7ff61 18px, #18a05d 18px, #18a05d 36px, #f4fff1 36px, #f4fff1 54px);
+      border-top: 4px solid #f4fff1;
+      border-left: 4px solid #f4fff1;
+      border-right: 4px solid #06351f;
+      border-bottom: 4px solid #06351f;
+      box-shadow: 0 0 0 6px #f7ff61, 8px 8px 0 #06351f;
+      animation: winBannerFlash 520ms steps(4, end) infinite;
+    }
+    .window.playingFocus.goalMetCue .finishOverlay,
+    .window.playingFocus.goalMissCue .finishOverlay {
+      position: fixed;
+      inset: 0;
+      z-index: 50;
+      min-height: auto;
+      padding: clamp(16px, 4vw, 40px);
+    }
+    .window.playingFocus.goalMetCue .finishOverlay {
+      background: transparent;
+      border: 0;
+      box-shadow: none;
+      animation: none;
+    }
+    .window.playingFocus.goalMissCue .finishOverlay {
+      background: transparent;
+      border: 0;
+      box-shadow: none;
+      animation: none;
+    }
+    .finishMessage {
+      background: #eef8e8;
+      border-top: 3px solid #f4fff1;
+      border-left: 3px solid #f4fff1;
+      border-right: 3px solid #31583f;
+      border-bottom: 3px solid #31583f;
+      box-shadow: 4px 4px 0 #06351f;
+      color: #00190f;
+      font-family: "Courier New", monospace;
+      font-size: 38px;
+      font-weight: bold;
+      padding: 18px 22px;
+      position: relative;
+      z-index: 3;
+      max-width: min(92vw, 620px);
+    }
+    .window.goalMetCue .finishMessage {
+      background: repeating-linear-gradient(135deg, #f7ff61 0, #f7ff61 20px, #f4fff1 20px, #f4fff1 36px, #80d68a 36px, #80d68a 52px);
+      color: #00190f;
+      font-family: "Arial Black", Impact, Tahoma, sans-serif;
+      border-top-width: 5px;
+      border-left-width: 5px;
+      border-right-width: 5px;
+      border-bottom-width: 5px;
+      border-right-color: #06351f;
+      border-bottom-color: #06351f;
+      box-shadow: 8px 8px 0 #06351f, 0 0 0 8px #18a05d, 0 0 0 15px #f4fff1;
+      font-size: clamp(46px, 10vw, 118px);
+      line-height: 0.9;
+      padding: 24px 30px;
+      text-transform: uppercase;
+      -webkit-text-stroke: 3px #f4fff1;
+      paint-order: stroke fill;
+      text-shadow: 6px 6px 0 #06351f;
+      animation: winMessagePunch 620ms steps(3, end) infinite, winBannerFlash 520ms steps(4, end) infinite;
+      max-width: min(94vw, 900px);
+    }
+    .window.goalMissCue .finishMessage {
+      background: repeating-linear-gradient(135deg, #ffe6e6 0, #ffe6e6 18px, #ff4d4d 18px, #ff4d4d 34px, #7a0000 34px, #7a0000 42px);
+      color: #fff4f4;
+      font-family: "Arial Black", Impact, Tahoma, sans-serif;
+      border-top-width: 5px;
+      border-left-width: 5px;
+      border-right-width: 5px;
+      border-bottom-width: 5px;
+      border-top-color: #fff4f4;
+      border-left-color: #fff4f4;
+      border-right-color: #7a0000;
+      border-bottom-color: #7a0000;
+      box-shadow: 8px 8px 0 #7a0000, 0 0 0 8px #ff4d4d, 0 0 0 15px #fff4f4;
+      font-size: clamp(42px, 9vw, 108px);
+      line-height: 0.92;
+      padding: 24px 30px;
+      text-transform: uppercase;
+      -webkit-text-stroke: 4px #7a0000;
+      paint-order: stroke fill;
+      text-shadow: 7px 7px 0 #520000, -2px -2px 0 #520000, 2px -2px 0 #520000, -2px 2px 0 #520000;
+      animation: missMessageShake 520ms steps(2, end) infinite, missBannerFlash 480ms steps(3, end) infinite;
+      max-width: min(94vw, 900px);
+    }
+    .confetti {
+      display: none;
+      position: absolute;
+      top: -44px;
+      width: 18px;
+      height: 34px;
+      z-index: 2;
+      animation: confettiFall 1200ms linear infinite;
+    }
+    .window.goalMetCue .confetti {
+      display: block;
+    }
+    .confetti.c1 { left: 8%; background: #f7ff61; animation-delay: 0ms; }
+    .confetti.c2 { left: 18%; background: #18a05d; animation-delay: 80ms; }
+    .confetti.c3 { left: 30%; background: #ff7a59; animation-delay: 30ms; }
+    .confetti.c4 { left: 42%; background: #80d68a; animation-delay: 120ms; }
+    .confetti.c5 { left: 55%; background: #f7ff61; animation-delay: 50ms; }
+    .confetti.c6 { left: 68%; background: #18a05d; animation-delay: 150ms; }
+    .confetti.c7 { left: 80%; background: #ff7a59; animation-delay: 20ms; }
+    .confetti.c8 { left: 92%; background: #80d68a; animation-delay: 100ms; }
+    .confetti.c9 { left: 3%; background: #f4fff1; animation-delay: 170ms; }
+    .confetti.c10 { left: 24%; background: #00190f; animation-delay: 210ms; }
+    .confetti.c11 { left: 74%; background: #f4fff1; animation-delay: 190ms; }
+    .confetti.c12 { left: 97%; background: #f7ff61; animation-delay: 230ms; }
+    @keyframes confettiFall {
+      0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+      80% { opacity: 1; }
+      100% { transform: translateY(720px) rotate(720deg); opacity: 0; }
+    }
+    #status, #log, #rule {
+      background: #eef8e8;
+      border-top: 2px solid #426549;
+      border-left: 2px solid #426549;
+      border-right: 2px solid #f4fff1;
+      border-bottom: 2px solid #f4fff1;
+      padding: 8px;
+      margin-top: 8px;
+      min-height: 40px;
+      font-weight: bold;
+      font-size: 14px;
+    }
+    #log {
+      font-family: "Courier New", monospace;
+      font-weight: normal;
+      max-height: 130px;
+      overflow: auto;
+    }
+    .gameplayControls {
+      display: none;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+    }
+    .gameplayControls button {
+      min-height: 58px;
+    }
+    .gameplayPause { background: #d4d889; }
+    .gameplayUndo { background: #b7d3ed; }
+    .gameplayReset { background: #c1eda7; }
+    .gameplayQuit { background: #d89a89; }
+    .window.playingFocus {
+      max-width: 100%;
+      min-height: calc(100vh - 20px);
+      display: flex;
+      flex-direction: column;
+    }
+    .window.playingFocus .titlebar,
+    .window.playingFocus .setupPanel,
+    .window.playingFocus .notesPanel,
+    .window.playingFocus #status,
+    .window.playingFocus #log {
+      display: none;
+    }
+    .window.playingFocus .content {
+      flex: 1;
+      display: flex;
+      padding: 10px;
+    }
+    .window.playingFocus .gamePanel {
+      flex: 1;
+      display: grid;
+      grid-template-rows: auto 1fr auto auto auto;
+      gap: 10px;
+      margin: 0;
+      min-height: calc(100vh - 40px);
+    }
+    .window.playingFocus .gameplayControls {
+      display: grid;
+    }
+    .window.playingFocus .stats {
+      grid-template-columns: repeat(4, 1fr);
+    }
+    .window.playingFocus .stats .stat:nth-child(4) { order: 1; }
+    .window.playingFocus .stats .stat:nth-child(1) { order: 2; }
+    .window.playingFocus .stats .stat:nth-child(2) { order: 3; }
+    .window.playingFocus .stats .stat:nth-child(3) { order: 4; }
+    .window.playingFocus .statVal {
+      font-size: clamp(34px, 7vw, 76px);
+      text-align: center;
+    }
+    .window.playingFocus .statName {
+      font-size: clamp(12px, 2vw, 18px);
+      text-align: center;
+    }
+    .window.playingFocus .plus {
+      height: auto;
+      min-height: 42vh;
+      margin: 0;
+      font-size: clamp(120px, 32vw, 260px);
+    }
+    .window.playingFocus .meterTrack {
+      height: clamp(34px, 7vh, 70px);
+    }
+    .window.playingFocus.goalMetCue .plus,
+    .window.playingFocus.goalMissCue .plus {
+      min-height: 24vh;
+    }
+    @media (min-width: 720px) {
+      .stats { grid-template-columns: repeat(4, 1fr); }
+    }
+    @media (max-width: 620px) {
+      .window.playingFocus .stats {
+        grid-template-columns: repeat(2, 1fr);
+      }
+      .window.playingFocus .plus {
+        min-height: 46vh;
+      }
+      .window.playingFocus.goalMetCue .plus,
+      .window.playingFocus.goalMissCue .plus {
+        min-height: 22vh;
+      }
+      .window.playingFocus .gameplayControls {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    /* Loud, deliberately cheesy 90s-internet pop-up end screens. */
+    .window.goalMetCue,
+    .window.goalMissCue {
+      animation: none;
+      background: #b9d6b3;
+      box-shadow: 4px 4px 0 #06351f;
+    }
+
+    .window.goalMetCue::before,
+    .window.goalMissCue::after {
+      content: none;
+      display: none;
+      animation: none;
+    }
+
+    .window.goalMetCue .confetti {
+      display: none;
+    }
+
+    .window.goalMetCue .finishOverlay,
+    .window.goalMissCue .finishOverlay {
+      min-height: clamp(220px, 38vh, 340px);
+      padding: 28px 16px;
+      overflow: visible;
+      background:
+        repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.12) 0 1px, transparent 1px 4px),
+        #00145b;
+      border: 0;
+      box-shadow: none;
+      animation: none;
+    }
+
+    .window.goalMetCue .finishOverlay {
+      background:
+        repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.14) 0 1px, transparent 1px 4px),
+        repeating-linear-gradient(90deg, #000080 0 24px, #0000a8 24px 48px);
+    }
+
+    .window.goalMissCue .finishOverlay {
+      background:
+        repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.12) 0 1px, transparent 1px 4px),
+        repeating-linear-gradient(90deg, #220022 0 24px, #4c004c 24px 48px);
+    }
+
+    .window.playingFocus.goalMetCue .finishOverlay,
+    .window.playingFocus.goalMissCue .finishOverlay {
+      inset: 0;
+      min-height: auto;
+      padding: clamp(24px, 6vw, 56px);
+      border: 0;
+      box-shadow: none;
+      background:
+        repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.1) 0 1px, transparent 1px 4px),
+        rgba(0, 10, 45, 0.62);
+    }
+
+    .window.goalMetCue .finishOverlay::before,
+    .window.goalMetCue .finishOverlay::after,
+    .window.goalMissCue .finishOverlay::before,
+    .window.goalMissCue .finishOverlay::after {
+      position: absolute;
+      z-index: 2;
+      padding: 6px 9px;
+      border: 3px outset #fff;
+      box-shadow: 4px 4px 0 #000;
+      font: 900 clamp(10px, 2.6vw, 15px)/1 Tahoma, Arial, sans-serif;
+      letter-spacing: 0.04em;
+      text-align: center;
+      animation: retroAdBlink 320ms steps(2, end) 3 both;
+    }
+
+    .window.goalMetCue .finishOverlay::before {
+      content: "★ YOU WON A FREE PRIZE!!! ★";
+      top: 10px;
+      left: 5%;
+      color: #ffff00;
+      background: #ff008c;
+      transform: rotate(-3deg);
+    }
+
+    .window.goalMetCue .finishOverlay::after {
+      content: "CLICK HERE!!!";
+      right: 5%;
+      bottom: 10px;
+      color: #000080;
+      background: #00ffff;
+      transform: rotate(3deg);
+    }
+
+    .window.goalMissCue .finishOverlay::before {
+      content: "!! ERROR WINDOW !!";
+      top: 10px;
+      left: 5%;
+      color: #fff;
+      background: #d00000;
+      transform: rotate(-3deg);
+    }
+
+    .window.goalMissCue .finishOverlay::after {
+      content: "WIN NOT FOUND";
+      right: 5%;
+      bottom: 10px;
+      color: #ffff00;
+      background: #000;
+      transform: rotate(3deg);
+    }
+
+    .window.goalMetCue .finishMessage,
+    .window.goalMissCue .finishMessage {
+      width: min(88vw, 430px);
+      max-width: 430px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      padding: 5px 5px 20px;
+      color: #000080;
+      background: #c0c0c0;
+      border: 4px solid #000;
+      box-shadow: 12px 12px 0 #000, -4px -4px 0 #fff;
+      font: 900 clamp(42px, 12vw, 78px)/0.88 "Arial Black", Impact, sans-serif;
+      letter-spacing: -0.055em;
+      text-align: center;
+      text-shadow: none;
+      -webkit-text-stroke: 0;
+      paint-order: stroke fill;
+      animation: retroPopupOpen 480ms steps(4, end) both;
+    }
+
+    .window.goalMetCue .finishMessage::before,
+    .window.goalMissCue .finishMessage::before {
+      align-self: stretch;
+      padding: 7px 8px;
+      color: #fff;
+      font: bold clamp(11px, 3.2vw, 15px)/1 Tahoma, Arial, sans-serif;
+      letter-spacing: 0.02em;
+      text-align: left;
+    }
+
+    .window.goalMetCue .finishMessage::before {
+      content: "★ WINNER.EXE ★ [X]";
+      background: #0000a8;
+    }
+
+    .window.goalMissCue .finishMessage::before {
+      content: "!! ERROR_404.EXE !! [X]";
+      background: #800080;
+    }
+
+    .window.goalMetCue .finishMessage {
+      color: #000080;
+      -webkit-text-stroke: 2px #ffff00;
+      text-shadow: 3px 3px 0 #ff00aa;
+    }
+
+    .window.goalMissCue .finishMessage {
+      color: #d00000;
+      -webkit-text-stroke: 2px #fff;
+      text-shadow: 3px 3px 0 #000;
+    }
+
+    .window.goalMetCue .finishMessage::after,
+    .window.goalMissCue .finishMessage::after {
+      padding: 5px 9px;
+      border: 2px outset #fff;
+      font: bold clamp(11px, 3vw, 14px)/1 Tahoma, Arial, sans-serif;
+      letter-spacing: 0.05em;
+      animation: retroAdBlink 300ms steps(2, end) 3 both;
+    }
+
+    .window.goalMetCue .finishMessage::after {
+      content: "★ GOAL UNLOCKED! ★";
+      color: #000;
+      background: #00ffff;
+    }
+
+    .window.goalMissCue .finishMessage::after {
+      content: "ERROR: WIN NOT FOUND";
+      color: #fff;
+      background: #ff008c;
+    }
+
+    @keyframes retroPopupOpen {
+      0% { opacity: 0; transform: scale(0.2) rotate(-7deg); }
+      65% { opacity: 1; transform: scale(1.07) rotate(2deg); }
+      100% { opacity: 1; transform: scale(1) rotate(0); }
+    }
+
+    @keyframes retroAdBlink {
+      0%, 49% { filter: contrast(1) brightness(1); }
+      50%, 100% { filter: contrast(1.8) brightness(1.35); }
+    }
+
+    @media (max-width: 520px) {
+      .window.goalMetCue .finishOverlay::before,
+      .window.goalMetCue .finishOverlay::after,
+      .window.goalMissCue .finishOverlay::before,
+      .window.goalMissCue .finishOverlay::after {
+        display: none;
+      }
+    }
+
+    /* Rebuilt as a clean, classic 90s browser-result pop-up. */
+    .window.goalMetCue,
+    .window.goalMissCue {
+      animation: none;
+      background: #b9d6b3;
+      box-shadow: 4px 4px 0 #06351f;
+    }
+
+    .window.goalMetCue::before,
+    .window.goalMissCue::after,
+    .window.goalMetCue .finishOverlay::before,
+    .window.goalMetCue .finishOverlay::after,
+    .window.goalMissCue .finishOverlay::before,
+    .window.goalMissCue .finishOverlay::after,
+    .window.goalMetCue .finishMessage::before,
+    .window.goalMetCue .finishMessage::after,
+    .window.goalMissCue .finishMessage::before,
+    .window.goalMissCue .finishMessage::after {
+      content: none;
+      display: none;
+      animation: none;
+    }
+
+    .window.goalMetCue .confetti,
+    .window.goalMissCue .confetti {
+      display: none;
+    }
+
+    .window.goalMetCue .finishOverlay,
+    .window.goalMissCue .finishOverlay,
+    .window.playingFocus.goalMetCue .finishOverlay,
+    .window.playingFocus.goalMissCue .finishOverlay {
+      position: fixed;
+      inset: 0;
+      z-index: 50;
+      display: grid;
+      min-height: 100vh;
+      min-height: 100svh;
+      place-items: center;
+      padding: 16px;
+      overflow: auto;
+      pointer-events: auto;
+      background: rgba(0, 53, 31, 0.5);
+      border: 0;
+      box-shadow: none;
+      animation: none;
+    }
+
+    .window.goalMetCue .finishMessage,
+    .window.goalMissCue .finishMessage {
+      width: min(92vw, 410px);
+      max-width: 410px;
+      display: block;
+      margin: 0;
+      padding: 3px;
+      color: #00190f;
+      background: #b9d6b3;
+      border: 2px solid;
+      border-color: #f4fff1 #31583f #31583f #f4fff1;
+      box-shadow: 3px 3px 0 #06351f;
+      font: 16px/1.3 Tahoma, Arial, sans-serif;
+      letter-spacing: 0;
+      text-align: left;
+      text-shadow: none;
+      -webkit-text-stroke: 0;
+      animation: none;
+    }
+
+    .finishTitlebar {
+      display: flex;
+      align-items: center;
+      min-height: 30px;
+      padding: 3px 4px 3px 7px;
+      color: #f4fff1;
+      background: linear-gradient(90deg, #064923, #18a05d);
+      font: bold 13px/1 Tahoma, Arial, sans-serif;
+    }
+
+    .finishClose,
+    .finishMenuBtn {
+      color: #00190f;
+      background: #b9d6b3;
+      border: 2px solid;
+      border-color: #f4fff1 #31583f #31583f #f4fff1;
+      box-shadow: 1px 1px 0 #06351f;
+      font-family: Tahoma, Arial, sans-serif;
+    }
+
+    .finishClose {
+      width: 28px;
+      min-width: 28px;
+      min-height: 24px;
+      margin-left: auto;
+      padding: 0;
+      font: bold 19px/18px Arial, sans-serif;
+    }
+
+    .finishClose:active,
+    .finishMenuBtn:active {
+      border-color: #31583f #f4fff1 #f4fff1 #31583f;
+      box-shadow: none;
+      transform: translate(1px, 1px);
+    }
+
+    .finishClose:focus-visible,
+    .finishMenuBtn:focus-visible {
+      outline: 2px dotted #f7ff61;
+      outline-offset: 2px;
+    }
+
+    .finishBody {
+      display: grid;
+      grid-template-columns: 38px 1fr;
+      gap: 14px;
+      align-items: start;
+      padding: 22px 18px 18px;
+      background: #eef8e8;
+    }
+
+    .finishIcon {
+      width: 34px;
+      height: 34px;
+      display: grid;
+      place-items: center;
+      border: 2px solid #a40000;
+      color: #a40000;
+      font: bold 27px/1 Arial, sans-serif;
+    }
+
+    .finishIcon::before {
+      content: "!";
+    }
+
+    .finishResult {
+      display: block;
+      margin-bottom: 5px;
+      color: #a40000;
+      font: bold clamp(30px, 10vw, 44px)/0.98 Arial, sans-serif;
+    }
+
+    .finishDetail {
+      margin: 0;
+      color: #00190f;
+      font-size: 14px;
+    }
+
+    .finishFooter {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 0 18px 18px;
+    }
+
+    .finishBadge {
+      padding: 2px 5px;
+      color: #00190f;
+      background: #f7ff61;
+      border: 1px solid #064923;
+      font: bold 10px/1 "Courier New", monospace;
+      white-space: nowrap;
+    }
+
+    .finishMenuBtn {
+      min-height: 34px;
+      padding: 5px 12px;
+      font: bold 14px/1.1 Tahoma, Arial, sans-serif;
+    }
+
+    .window.goalMetCue .finishIcon,
+    .window.goalMetCue .finishResult {
+      color: #064923;
+      border-color: #064923;
+    }
+
+    .window.goalMetCue .finishIcon::before {
+      content: "✓";
+    }
+
+    .window.goalMetCue .finishBadge {
+      color: #00190f;
+      border-color: #064923;
+    }
+
+    @media (max-width: 460px) {
+      .finishBody {
+        grid-template-columns: 32px 1fr;
+        gap: 10px;
+        padding: 18px 14px 14px;
+      }
+
+      .finishIcon {
+        width: 30px;
+        height: 30px;
+        font-size: 23px;
+      }
+
+      .finishFooter {
+        padding: 0 14px 14px;
+      }
+
+      .finishBadge {
+        display: none;
+      }
+    }
+  </style>
+  <script>
+    var running = false;
+    var paused = false;
+    var startedAt = 0;
+    var pauseStartedAt = 0;
+    var totalPauseMs = 0;
+    var timerId = null;
+    var passTimes = [];
+    var points = 0;
+    var lastPointPassCount = 0;
+    var meterProgress = 0;
+    var pointSoundStreak = 0;
+    var reminderPlayed = false;
+    var lastTickSecond = null;
+    var audioCtx = null;
+    var notesTimerId = null;
+    var finishCueTimerId = null;
+    var notesStorageKey = "gymnasticsRateGameNotes";
+    var skillPresetStorageKey = "gymnasticsRateGameSkillPresets";
+    var hiddenBuiltInPresetStorageKey = "gymnasticsRateGameHiddenBuiltInSkillPresets";
+    var builtInSkillPresets = [
+      {
+        name: "cartwheel",
+        targetRate: "0.2",
+        rateUnit: "second",
+        samplePasses: "20",
+        roundMin: "2",
+        pointGoal: "5",
+        passGoal: "50"
+      },
+      {
+        name: "front tuck on vault",
+        targetRate: "5",
+        rateUnit: "minute",
+        samplePasses: "5",
+        roundMin: "2",
+        pointGoal: "3",
+        passGoal: "12"
+      },
+      {
+        name: "roundoff",
+        targetRate: "0.1",
+        rateUnit: "second",
+        samplePasses: "12",
+        roundMin: "2",
+        pointGoal: "4",
+        passGoal: "35"
+      }
+    ];
+
+    function el(id) {
+      return document.getElementById(id);
+    }
+
+    function bind(id, eventName, handler) {
+      var node = el(id);
+      if (!node) return;
+      node.addEventListener(eventName, handler);
+    }
+
+    function presetKey(name) {
+      return String(name || "").replace(/^\s+|\s+$/g, "").toLowerCase();
+    }
+
+    function readJsonStorage(key, fallback) {
+      try {
+        var raw = localStorage.getItem(key);
+        if (raw === null) return fallback;
+        return JSON.parse(raw);
+      } catch (e) {
+        return fallback;
+      }
+    }
+
+    function writeJsonStorage(key, value) {
+      try {
+        localStorage.setItem(key, JSON.stringify(value));
+        return true;
+      } catch (e) {
+        return false;
+      }
+    }
+
+    function customSkillPresets() {
+      var saved = readJsonStorage(skillPresetStorageKey, {});
+      if (!saved || typeof saved !== "object" || Array.isArray(saved)) return {};
+      return saved;
+    }
+
+    function hiddenBuiltInPresets() {
+      var saved = readJsonStorage(hiddenBuiltInPresetStorageKey, []);
+      if (!Array.isArray(saved)) return [];
+      return saved;
+    }
+
+    function setSkillPresetStatus(text) {
+      var node = el("skillPresetStatus");
+      if (node) node.textContent = text;
+    }
+
+    function collectSkillPreset() {
+      return {
+        name: skillName(),
+        targetRate: String(num("targetRate", 0.5, 0.01)),
+        rateUnit: el("rateUnit").value,
+        samplePasses: String(samplePasses()),
+        roundMin: String(num("roundMin", 2, 0.1)),
+        pointGoal: String(pointGoal()),
+        passGoal: String(passGoal())
+      };
+    }
+
+    function allSkillPresets() {
+      var hidden = hiddenBuiltInPresets();
+      var custom = customSkillPresets();
+      var presets = [];
+      var used = {};
+
+      for (var i = 0; i < builtInSkillPresets.length; i++) {
+        var builtIn = builtInSkillPresets[i];
+        var key = presetKey(builtIn.name);
+        if (hidden.indexOf(key) !== -1 && !custom[key]) continue;
+        presets.push(custom[key] || builtIn);
+        used[key] = true;
+      }
+
+      var customKeys = Object.keys(custom).sort();
+      for (var j = 0; j < customKeys.length; j++) {
+        var customKey = customKeys[j];
+        if (used[customKey]) continue;
+        presets.push(custom[customKey]);
+      }
+
+      return presets;
+    }
+
+    function findSkillPreset(key) {
+      var presets = allSkillPresets();
+      for (var i = 0; i < presets.length; i++) {
+        if (presetKey(presets[i].name) === key) return presets[i];
+      }
+      return null;
+    }
+
+    function renderSkillPresetOptions(selectedKey) {
+      var select = el("skillPreset");
+      if (!select) return;
+
+      var presets = allSkillPresets();
+      select.innerHTML = "";
+
+      var blank = document.createElement("option");
+      blank.value = "";
+      blank.textContent = "choose skill setting...";
+      select.appendChild(blank);
+
+      for (var i = 0; i < presets.length; i++) {
+        var preset = presets[i];
+        var option = document.createElement("option");
+        option.value = presetKey(preset.name);
+        option.textContent = preset.name + " (" + preset.targetRate + " " + (preset.rateUnit === "minute" ? "/min" : "/sec") + ")";
+        select.appendChild(option);
+      }
+
+      select.value = selectedKey || "";
+    }
+
+    function updateSelectedSkillPreset() {
+      var select = el("skillPreset");
+      if (!select) return;
+      var key = presetKey(skillName());
+      select.value = findSkillPreset(key) ? key : "";
+    }
+
+    function applySkillPreset(key) {
+      var preset = findSkillPreset(key);
+      if (!preset) {
+        setSkillPresetStatus("Skill setting not found.");
+        return;
+      }
+
+      el("skill").value = preset.name;
+      el("targetRate").value = preset.targetRate;
+      el("rateUnit").value = preset.rateUnit;
+      el("samplePasses").value = preset.samplePasses;
+      el("roundMin").value = preset.roundMin;
+      el("pointGoal").value = preset.pointGoal;
+      el("passGoal").value = preset.passGoal;
+      renderSkillPresetOptions(presetKey(preset.name));
+      updateRule();
+      setSkillPresetStatus("Loaded " + preset.name + ".");
+    }
+
+    function saveCurrentSkillPreset() {
+      var preset = collectSkillPreset();
+      var key = presetKey(preset.name);
+      if (!key) {
+        setSkillPresetStatus("Type a skill name first.");
+        return;
+      }
+
+      var custom = customSkillPresets();
+      custom[key] = preset;
+      writeJsonStorage(skillPresetStorageKey, custom);
+
+      var hidden = hiddenBuiltInPresets().filter(function(hiddenKey) {
+        return hiddenKey !== key;
+      });
+      writeJsonStorage(hiddenBuiltInPresetStorageKey, hidden);
+
+      renderSkillPresetOptions(key);
+      setSkillPresetStatus("Saved " + preset.name + ".");
+      updateRule();
+    }
+
+    function deleteSelectedSkillPreset() {
+      var select = el("skillPreset");
+      var key = select && select.value ? select.value : presetKey(skillName());
+      var preset = findSkillPreset(key);
+      if (!preset) {
+        setSkillPresetStatus("Choose a saved skill first.");
+        return;
+      }
+
+      if (!confirm("Delete saved settings for " + preset.name + "?")) return;
+
+      var custom = customSkillPresets();
+      if (custom[key]) {
+        delete custom[key];
+        writeJsonStorage(skillPresetStorageKey, custom);
+      }
+
+      var builtInKey = "";
+      for (var i = 0; i < builtInSkillPresets.length; i++) {
+        if (presetKey(builtInSkillPresets[i].name) === key) builtInKey = key;
+      }
+
+      if (builtInKey) {
+        var hidden = hiddenBuiltInPresets();
+        if (hidden.indexOf(builtInKey) === -1) hidden.push(builtInKey);
+        writeJsonStorage(hiddenBuiltInPresetStorageKey, hidden);
+      }
+
+      renderSkillPresetOptions("");
+      setSkillPresetStatus("Deleted " + preset.name + ".");
+    }
+
+    function num(id, fallback, min) {
+      var n = parseFloat(el(id).value);
+      if (isNaN(n)) n = fallback;
+      if (n < min) n = min;
+      return n;
+    }
+
+    function roundSeconds() {
+      return num("roundMin", 2, 0.1) * 60;
+    }
+
+    function pointGoal() {
+      return Math.max(1, Math.floor(num("pointGoal", 5, 1)));
+    }
+
+    function passGoal() {
+      return Math.max(1, Math.floor(num("passGoal", 50, 1)));
+    }
+
+    function getAudioContext() {
+      var AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContextClass) return null;
+      if (audioCtx === null) audioCtx = new AudioContextClass();
+      window.gameAudioCtx = audioCtx;
+      if (audioCtx.state === "suspended") {
+        var resume = audioCtx.resume();
+        if (resume && resume.catch) resume.catch(function() {});
+      }
+      return audioCtx;
+    }
+
+    function playTone(freq, delay, duration, type, volume) {
+      var ctx = getAudioContext();
+      if (!ctx) return;
+
+      var osc = ctx.createOscillator();
+      var gain = ctx.createGain();
+      var start = ctx.currentTime + delay;
+      var end = start + duration;
+
+      osc.type = type;
+      osc.frequency.setValueAtTime(freq, start);
+      gain.gain.setValueAtTime(0.0001, start);
+      gain.gain.exponentialRampToValueAtTime(volume, start + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.0001, end);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(start);
+      osc.stop(end + 0.02);
+    }
+
+    function playSlideTone(startFreq, endFreq, delay, duration, type, volume) {
+      var ctx = getAudioContext();
+      if (!ctx) return;
+
+      var osc = ctx.createOscillator();
+      var gain = ctx.createGain();
+      var start = ctx.currentTime + delay;
+      var end = start + duration;
+
+      osc.type = type;
+      osc.frequency.setValueAtTime(startFreq, start);
+      osc.frequency.exponentialRampToValueAtTime(endFreq, end);
+      gain.gain.setValueAtTime(0.0001, start);
+      gain.gain.exponentialRampToValueAtTime(volume, start + 0.03);
+      gain.gain.exponentialRampToValueAtTime(0.0001, end);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(start);
+      osc.stop(end + 0.03);
+    }
+
+    function playPassSound() {
+      playTone(980, 0, 0.045, "square", 0.12);
+    }
+
+    function playStartSound() {
+      playTone(392, 0, 0.08, "triangle", 0.12);
+      playTone(588, 0.08, 0.12, "triangle", 0.12);
+    }
+
+    function playPauseSound() {
+      playTone(520, 0, 0.08, "square", 0.08);
+      playTone(390, 0.09, 0.1, "square", 0.08);
+    }
+
+    function playResumeSound() {
+      playTone(390, 0, 0.08, "square", 0.08);
+      playTone(520, 0.09, 0.1, "square", 0.08);
+    }
+
+    function playResetSound() {
+      playSlideTone(500, 180, 0, 0.22, "sawtooth", 0.1);
+    }
+
+    function playReminderSound() {
+      playTone(440, 0, 0.16, "square", 0.12);
+      playTone(660, 0.18, 0.16, "square", 0.12);
+      playTone(440, 0.36, 0.16, "square", 0.12);
+      playTone(880, 0.58, 0.28, "triangle", 0.16);
+      playTone(1320, 0.62, 0.2, "sine", 0.08);
+    }
+
+    function playTickSound(secondsLeft) {
+      var base = secondsLeft % 2 === 0 ? 360 : 420;
+      playTone(base, 0, 0.07, "square", 0.12);
+      playTone(900, 0.055, 0.09, "triangle", 0.14);
+      playTone(1200, 0.11, 0.06, "sine", 0.08);
+    }
+
+    function playBell(freq, delay) {
+      playTone(freq, delay, 0.18, "sine", 0.16);
+      playTone(freq * 2, delay + 0.01, 0.12, "triangle", 0.07);
+    }
+
+    function pointPitch(streak) {
+      return Math.pow(1.12, Math.min(Math.max(streak, 1) - 1, 5));
+    }
+
+    function pitched(freq, multiplier) {
+      return Math.min(3400, freq * multiplier);
+    }
+
+    function playPointSound(streak) {
+      var pitch = pointPitch(streak);
+      var voice = (streak - 1) % 3;
+
+      if (voice === 0) {
+        playTone(pitched(660, pitch), 0, 0.08, "triangle", 0.14);
+        playTone(pitched(880, pitch), 0.08, 0.1, "triangle", 0.14);
+        playTone(pitched(1320, pitch), 0.18, 0.14, "sine", 0.12);
+        return;
+      }
+
+      if (voice === 1) {
+        playTone(pitched(740, pitch), 0, 0.07, "square", 0.1);
+        playTone(pitched(1110, pitch), 0.07, 0.11, "triangle", 0.13);
+        playTone(pitched(1480, pitch), 0.18, 0.1, "sine", 0.11);
+        return;
+      }
+
+      playTone(pitched(830, pitch), 0, 0.06, "sine", 0.11);
+      playTone(pitched(1245, pitch), 0.06, 0.08, "triangle", 0.13);
+      playTone(pitched(1660, pitch), 0.14, 0.12, "sine", 0.11);
+    }
+
+    function playGoalMetSound() {
+      playBell(784, 0);
+      playBell(988, 0.18);
+      playBell(1175, 0.36);
+      playBell(1568, 0.54);
+    }
+
+    function playGoalMissedSound() {
+      playSlideTone(190, 58, 0, 1.35, "sawtooth", 0.18);
+      playSlideTone(132, 48, 0.04, 1.25, "square", 0.09);
+      playSlideTone(92, 38, 0.18, 1.1, "sawtooth", 0.06);
+    }
+
+    function clearCues() {
+      var windowBox = document.querySelector(".window");
+      var pointsBox = el("points");
+      var result = el("finishResult");
+      var detail = el("finishDetail");
+      if (finishCueTimerId !== null) {
+        clearTimeout(finishCueTimerId);
+        finishCueTimerId = null;
+      }
+      if (windowBox) {
+        windowBox.classList.remove("pointCue");
+        windowBox.classList.remove("goalMetCue");
+        windowBox.classList.remove("goalMissCue");
+      }
+      if (pointsBox) pointsBox.classList.remove("pointCue");
+      if (result) result.textContent = "";
+      if (detail) detail.textContent = "";
+    }
+
+    function showPointCue() {
+      var windowBox = document.querySelector(".window");
+      var pointsBox = el("points");
+
+      clearCues();
+      void windowBox.offsetWidth;
+      windowBox.classList.add("pointCue");
+      pointsBox.classList.add("pointCue");
+    }
+
+    function showFinishCue(metGoal) {
+      var windowBox = document.querySelector(".window");
+      var result = el("finishResult");
+      var detail = el("finishDetail");
+      clearCues();
+      if (result) result.textContent = metGoal ? "YOU WIN!" : "FAIL!";
+      if (detail) {
+        detail.textContent = metGoal
+          ? "You hit the goal. Close this window to return to the main menu."
+          : "The goal was not met this round. Close this window to return to the main menu.";
+      }
+      void windowBox.offsetWidth;
+      windowBox.classList.add(metGoal ? "goalMetCue" : "goalMissCue");
+    }
+
+    function skillName() {
+      var value = el("skill").value;
+      value = value.replace(/^\s+|\s+$/g, "");
+      return value || "skill";
+    }
+
+    function perSecondRate() {
+      var r = num("targetRate", 0.5, 0.01);
+      if (el("rateUnit").value === "minute") return r / 60;
+      return r;
+    }
+
+    function rateText(ratePerSecond) {
+      if (el("rateUnit").value === "minute") {
+        return (ratePerSecond * 60).toFixed(2) + "/min";
+      }
+
+      return ratePerSecond.toFixed(2) + "/sec";
+    }
+
+    function activeMs() {
+      if (!running) return 0;
+      var now = paused ? pauseStartedAt : Date.now();
+      return now - startedAt - totalPauseMs;
+    }
+
+    function timeText(seconds) {
+      seconds = Math.max(0, Math.ceil(seconds));
+      var m = Math.floor(seconds / 60);
+      var s = seconds % 60;
+      return m + ":" + (s < 10 ? "0" + s : s);
+    }
+
+    function samplePasses() {
+      return Math.max(2, Math.floor(num("samplePasses", 20, 2)));
+    }
+
+    function targetGapMs() {
+      return 1000 / perSecondRate();
+    }
+
+    function currentSample() {
+      var sampleSize = samplePasses();
+      var start = Math.max(0, passTimes.length - sampleSize);
+      return passTimes.slice(start);
+    }
+
+    function sampleRate(sample) {
+      if (sample.length < 2) return 0;
+      var span = (sample[sample.length - 1] - sample[0]) / 1000;
+      if (span <= 0) return 0;
+      return (sample.length - 1) / span;
+    }
+
+    function currentRate() {
+      if (passTimes.length < 2) return 0;
+      var last = passTimes[passTimes.length - 1];
+      var previous = passTimes[passTimes.length - 2];
+      var span = (last - previous) / 1000;
+      if (span <= 0) return 0;
+      return 1 / span;
+    }
+
+    function displayRate(ratePerSecond) {
+      if (el("rateUnit").value === "minute") return ratePerSecond * 60;
+      return ratePerSecond;
+    }
+
+    function currentMeterProgress(ms) {
+      if (passTimes.length === 0) return meterProgress;
+
+      var maxGapMs = targetGapMs();
+      var lastPassAt = passTimes[passTimes.length - 1];
+      var overdueMs = ms - lastPassAt - maxGapMs;
+
+      if (overdueMs <= 0) return meterProgress;
+      return Math.max(0, meterProgress - (overdueMs / maxGapMs));
+    }
+
+    function updateMeterForPass(ms) {
+      var sampleSize = samplePasses();
+
+      if (passTimes.length === 0) {
+        meterProgress = Math.min(sampleSize, meterProgress + 1);
+        return;
+      }
+
+      var previousPassAt = passTimes[passTimes.length - 1];
+      var progressNow = currentMeterProgress(ms);
+
+      if (ms - previousPassAt <= targetGapMs()) {
+        meterProgress = Math.min(sampleSize, progressNow + 1);
+      } else {
+        meterProgress = progressNow;
+      }
+    }
+
+    function meterPercent(progress) {
+      return Math.min(100, Math.round((progress / samplePasses()) * 100));
+    }
+
+    function setStatus(text) {
+      el("status").textContent = text;
+    }
+
+    function setFocusMode(active) {
+      var windowBox = document.querySelector(".window");
+      if (!windowBox) return;
+      if (active) {
+        windowBox.classList.add("playingFocus");
+      } else {
+        windowBox.classList.remove("playingFocus");
+      }
+    }
+
+    function setPauseButtonText(text) {
+      var setupPause = el("pauseBtn");
+      var gameplayPause = el("gameplayPauseBtn");
+      if (setupPause) setupPause.textContent = text;
+      if (gameplayPause) gameplayPause.textContent = text;
+    }
+
+    function addLog(text) {
+      var log = el("log");
+      if (log.textContent === "No passes yet.") log.textContent = "";
+      var div = document.createElement("div");
+      div.textContent = text;
+      log.insertBefore(div, log.firstChild);
+    }
+
+    function setNoteStatus(text) {
+      el("notesStatus").textContent = text;
+    }
+
+    function loadNotes() {
+      try {
+        var saved = localStorage.getItem(notesStorageKey);
+        if (saved !== null) el("notes").value = saved;
+        setNoteStatus("Saved");
+      } catch (e) {
+        setNoteStatus("Notes not saved");
+      }
+    }
+
+    function saveNotes() {
+      try {
+        localStorage.setItem(notesStorageKey, el("notes").value);
+        setNoteStatus("Saved");
+      } catch (e) {
+        setNoteStatus("Notes not saved");
+      }
+    }
+
+    function queueNotesSave() {
+      setNoteStatus("Saving");
+      if (notesTimerId !== null) clearTimeout(notesTimerId);
+      notesTimerId = setTimeout(function() {
+        notesTimerId = null;
+        saveNotes();
+      }, 250);
+    }
+
+    function suggestedPassGoal() {
+      return Math.max(1, Math.round(perSecondRate() * roundSeconds()));
+    }
+
+    function suggestedPointGoal() {
+      var passes = suggestedPassGoal();
+      var fillPasses = samplePasses();
+      return Math.max(1, passes - fillPasses + 1);
+    }
+
+    function updateGoalHelper() {
+      var helper = el("goalHelper");
+      if (!helper) return;
+
+      var expected = perSecondRate() * roundSeconds();
+      var passes = suggestedPassGoal();
+      var fillPasses = samplePasses();
+      var points = suggestedPointGoal();
+      var unit = el("rateUnit").value === "minute" ? "per minute" : "per second";
+      var detail = "";
+
+      if (passes < fillPasses) {
+        detail = "At this rate/round length, the bar probably will not fill before time runs out. Suggested point goal stays at 1 unless you lower sample passes or lengthen the round.";
+      } else {
+        detail = "After the first " + fillPasses + " on-rate pass(es), each new on-rate pass can score. Suggested point goal: " + points + ".";
+      }
+
+      helper.innerHTML =
+        "At " + num("targetRate", 0.5, 0.01) + " " + unit + " for " +
+        num("roundMin", 2, 0.1) + " minute(s), expect about " +
+        expected.toFixed(1) + " pass(es). Suggested pass goal: " + passes + "." +
+        "<span class=\"goalHelperDetail\">" + detail + "</span>";
+    }
+
+    function applySuggestedGoals() {
+      el("passGoal").value = String(suggestedPassGoal());
+      el("pointGoal").value = String(suggestedPointGoal());
+      updateRule();
+      setSkillPresetStatus("Applied suggested goals.");
+    }
+
+    function updateRule() {
+      var unit = el("rateUnit").value === "minute" ? "per minute" : "per second";
+      el("rule").textContent =
+        "Score when the bar reaches " + samplePasses() + " on-rate " +
+        skillName() + "(s) at " +
+        num("targetRate", 0.5, 0.01) + " " + unit + ". Goal: " +
+        pointGoal() + " point(s) or " + passGoal() + " pass(es).";
+
+      if (!running) {
+        el("timeLeft").textContent = timeText(roundSeconds());
+      }
+      updateGoalHelper();
+    }
+
+    function refreshGameDisplay() {
+      var round = roundSeconds();
+      var left = running ? round - (activeMs() / 1000) : round;
+      var progress = running ? currentMeterProgress(activeMs()) : meterProgress;
+
+      el("passes").textContent = String(passTimes.length);
+      el("points").textContent = String(points);
+      el("rateNow").textContent = displayRate(currentRate()).toFixed(2);
+      el("timeLeft").textContent = timeText(left);
+      el("meter").style.width = meterPercent(progress) + "%";
+    }
+
+    function update() {
+      updateRule();
+
+      if (!running) return;
+
+      var round = roundSeconds();
+      var elapsed = activeMs() / 1000;
+      var left = round - elapsed;
+
+      if (!paused && round >= 30 && !reminderPlayed && left <= 30 && left > 10) {
+        reminderPlayed = true;
+        playReminderSound();
+      }
+
+      if (!paused && left <= 10 && left > 0) {
+        var tickSecond = Math.ceil(left);
+        if (tickSecond !== lastTickSecond) {
+          lastTickSecond = tickSecond;
+          playTickSound(tickSecond);
+        }
+      }
+
+      if (left <= 0) {
+        running = false;
+        clearInterval(timerId);
+        timerId = null;
+        el("timeLeft").textContent = "0:00";
+        if (points >= pointGoal() || passTimes.length >= passGoal()) {
+          playGoalMetSound();
+          showFinishCue(true);
+          setStatus("YOU WIN! Points: " + points + " / " + pointGoal() + ". Passes: " + passTimes.length + " / " + passGoal() + ".");
+          addLog("WIN: " + points + " point(s), " + passTimes.length + " pass(es).");
+        } else {
+          playGoalMissedSound();
+          showFinishCue(false);
+          setStatus("FAIL! Points: " + points + " / " + pointGoal() + ". Passes: " + passTimes.length + " / " + passGoal() + ".");
+          addLog("FAIL: " + points + " point(s), " + passTimes.length + " pass(es).");
+        }
+        return;
+      }
+
+      var sample = currentSample();
+      var sampleSize = samplePasses();
+      var rate = sampleRate(sample);
+      var current = currentRate();
+      var ms = activeMs();
+      var overdue = passTimes.length > 0 && (ms - passTimes[passTimes.length - 1]) > targetGapMs();
+      var progress = currentMeterProgress(ms);
+      var percent = meterPercent(progress);
+
+      refreshGameDisplay();
+
+      if (progress < sampleSize) {
+        pointSoundStreak = 0;
+
+        if (overdue || (passTimes.length >= 2 && current < perSecondRate())) {
+          setStatus("Below target pace. Bar is draining. Points stay.");
+          return;
+        }
+
+        setStatus("Need " + Math.ceil(sampleSize - progress) + " more on-rate pass(es).");
+        return;
+      }
+
+      if (passTimes.length > lastPointPassCount) {
+        points = points + 1;
+        pointSoundStreak = pointSoundStreak + 1;
+        lastPointPassCount = passTimes.length;
+        el("points").textContent = String(points);
+        playPointSound(pointSoundStreak);
+        showPointCue();
+        setStatus("POINT x" + pointSoundStreak + ". They kept " + sampleSize + " passes on rate.");
+        addLog("POINT x" + pointSoundStreak + ": last " + sampleSize + " " + skillName() + "(s) averaged " + rateText(rate) + ".");
+        return;
+      }
+
+      setStatus("Rate is high enough. Add another pass to score again.");
+    }
+
+    function startRound() {
+      running = true;
+      paused = false;
+      startedAt = Date.now();
+      pauseStartedAt = 0;
+      totalPauseMs = 0;
+      passTimes = [];
+      points = 0;
+      lastPointPassCount = 0;
+      meterProgress = 0;
+      pointSoundStreak = 0;
+      reminderPlayed = false;
+      lastTickSecond = null;
+
+      getAudioContext();
+      playStartSound();
+      clearCues();
+      setFocusMode(true);
+      refreshGameDisplay();
+      el("log").textContent = "No passes yet.";
+      setPauseButtonText("Pause");
+
+      setStatus("STARTED. Tap + for every good " + skillName() + ".");
+      addLog("START: " + skillName());
+
+      if (timerId !== null) clearInterval(timerId);
+      timerId = setInterval(update, 250);
+      update();
+    }
+
+    function pauseRound() {
+      if (!running) {
+        setStatus("Press Start first.");
+        return;
+      }
+
+      if (!paused) {
+        paused = true;
+        pauseStartedAt = Date.now();
+        setPauseButtonText("Resume");
+        playPauseSound();
+        setStatus("Paused.");
+      } else {
+        paused = false;
+        totalPauseMs = totalPauseMs + (Date.now() - pauseStartedAt);
+        pauseStartedAt = 0;
+        setPauseButtonText("Pause");
+        playResumeSound();
+        setStatus("Resumed.");
+      }
+    }
+
+    function resetRound(silent) {
+      running = false;
+      paused = false;
+      setFocusMode(false);
+      if (timerId !== null) {
+        clearInterval(timerId);
+        timerId = null;
+      }
+
+      passTimes = [];
+      points = 0;
+      lastPointPassCount = 0;
+      meterProgress = 0;
+      pointSoundStreak = 0;
+      reminderPlayed = false;
+      lastTickSecond = null;
+
+      if (silent !== true) {
+        getAudioContext();
+        playResetSound();
+      }
+      clearCues();
+      refreshGameDisplay();
+      el("log").textContent = "No passes yet.";
+      setPauseButtonText("Pause");
+      setStatus("Press Start, then tap + for each good pass.");
+      updateRule();
+    }
+
+    function recalculateFromPasses(keptPasses) {
+      var savedPasses = keptPasses.slice(0);
+      passTimes = [];
+      points = 0;
+      lastPointPassCount = 0;
+      meterProgress = 0;
+      pointSoundStreak = 0;
+
+      for (var i = 0; i < savedPasses.length; i++) {
+        updateMeterForPass(savedPasses[i]);
+        passTimes.push(savedPasses[i]);
+
+        if (meterProgress >= samplePasses() && passTimes.length > lastPointPassCount) {
+          points = points + 1;
+          pointSoundStreak = pointSoundStreak + 1;
+          lastPointPassCount = passTimes.length;
+        } else if (meterProgress < samplePasses()) {
+          pointSoundStreak = 0;
+        }
+      }
+    }
+
+    function undoLastPass() {
+      if (!running) {
+        setStatus("Press Start first.");
+        return;
+      }
+
+      if (passTimes.length === 0) {
+        setStatus("No passes to undo.");
+        return;
+      }
+
+      var keptPasses = passTimes.slice(0, passTimes.length - 1);
+      recalculateFromPasses(keptPasses);
+      clearCues();
+      refreshGameDisplay();
+      addLog("UNDO: removed last " + skillName() + ".");
+      setStatus("Undid last pass.");
+    }
+
+    function quitRound() {
+      resetRound(false);
+      setStatus("Quit round. Press Start to begin again.");
+    }
+
+    function returnToMainMenu() {
+      resetRound(true);
+      setStatus("Ready for a new round.");
+      window.requestAnimationFrame(function() {
+        var startButton = el("startBtn");
+        if (startButton) startButton.focus();
+      });
+    }
+
+    function addPass() {
+      if (!running) {
+        setStatus("Press Start first.");
+        return;
+      }
+
+      if (paused) {
+        setStatus("Paused. Press Resume first.");
+        return;
+      }
+
+      var ms = activeMs();
+      var pointsBeforePass = points;
+      updateMeterForPass(ms);
+      passTimes.push(ms);
+      el("passes").textContent = String(passTimes.length);
+      addLog("+1 " + skillName() + " at " + timeText(ms / 1000));
+      update();
+
+      if (running && points === pointsBeforePass) {
+        playPassSound();
+      }
+    }
+
+    window.addEventListener("DOMContentLoaded", function() {
+      var inputs = ["skill", "targetRate", "rateUnit", "samplePasses", "roundMin", "pointGoal", "passGoal"];
+      for (var i = 0; i < inputs.length; i++) {
+        bind(inputs[i], "input", updateRule);
+        bind(inputs[i], "change", updateRule);
+      }
+
+      bind("skill", "input", updateSelectedSkillPreset);
+      bind("skillPreset", "change", function() {
+        var key = el("skillPreset").value;
+        if (key) applySkillPreset(key);
+      });
+      bind("loadSkillPresetBtn", "click", function() {
+        var key = el("skillPreset").value;
+        if (!key) key = presetKey(skillName());
+        applySkillPreset(key);
+      });
+      bind("saveSkillPresetBtn", "click", saveCurrentSkillPreset);
+      bind("deleteSkillPresetBtn", "click", deleteSelectedSkillPreset);
+      bind("applySuggestedGoalsBtn", "click", applySuggestedGoals);
+      bind("startBtn", "click", startRound);
+      bind("pauseBtn", "click", pauseRound);
+      bind("resetBtn", "click", resetRound);
+      bind("plusBtn", "click", addPass);
+      bind("gameplayPauseBtn", "click", pauseRound);
+      bind("gameplayUndoBtn", "click", undoLastPass);
+      bind("gameplayResetBtn", "click", resetRound);
+      bind("gameplayQuitBtn", "click", quitRound);
+      bind("finishCloseBtn", "click", returnToMainMenu);
+      bind("finishMenuBtn", "click", returnToMainMenu);
+      bind("notes", "input", queueNotesSave);
+      bind("notes", "change", saveNotes);
+
+      document.addEventListener("keydown", function(e) {
+        if (e.code === "Space") {
+          var target = e.target;
+          var tag = target && target.tagName ? target.tagName.toLowerCase() : "";
+          if (tag === "input" || tag === "textarea" || tag === "select" || target.isContentEditable) {
+            return;
+          }
+
+          e.preventDefault();
+          addPass();
+        }
+      });
+
+      loadNotes();
+      renderSkillPresetOptions(presetKey(skillName()));
+      updateSelectedSkillPreset();
+      resetRound(true);
+    });
+  </script>
+</head>
+
+<body>
+  <div class="window">
+    <div class="titlebar">Rate Game</div>
+
+    <div class="content">
+      <div class="panel setupPanel">
+        <label for="skill">Skill name</label>
+        <input id="skill" value="cartwheel">
+
+        <label for="skillPreset">Saved skill setting</label>
+        <select id="skillPreset"></select>
+        <div class="buttons presetButtons">
+          <button id="loadSkillPresetBtn" type="button">Load</button>
+          <button id="saveSkillPresetBtn" type="button">Save skill</button>
+          <button id="deleteSkillPresetBtn" type="button">Delete</button>
+        </div>
+        <div id="skillPresetStatus" class="presetStatus">Type a skill, set rates, then save it.</div>
+
+        <div class="grid">
+          <div>
+            <label for="targetRate">Target rate</label>
+            <input id="targetRate" type="number" inputmode="decimal" value="0.2" min="0.01" step="0.01">
+          </div>
+          <div>
+            <label for="rateUnit">Rate unit</label>
+            <select id="rateUnit">
+              <option value="second">per second</option>
+              <option value="minute">per minute</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid">
+          <div>
+            <label for="samplePasses">Sample passes</label>
+            <input id="samplePasses" type="number" inputmode="numeric" value="20" min="2" step="1">
+          </div>
+          <div>
+            <label for="roundMin">Round minutes</label>
+            <input id="roundMin" type="number" inputmode="decimal" value="2" min="0.1" step="0.5">
+          </div>
+        </div>
+
+        <div class="grid">
+          <div>
+            <label for="pointGoal">Point goal</label>
+            <input id="pointGoal" type="number" inputmode="numeric" value="5" min="1" step="1">
+          </div>
+          <div>
+            <label for="passGoal">Passes goal</label>
+            <input id="passGoal" type="number" inputmode="numeric" value="50" min="1" step="1">
+          </div>
+        </div>
+        <div id="goalHelper" class="presetStatus">Goal helper loading...</div>
+        <div class="buttons presetButtons helperButtons">
+          <button id="applySuggestedGoalsBtn" type="button">Apply suggested goals</button>
+        </div>
+
+        <div class="buttons">
+          <button id="startBtn" class="start" type="button">Start</button>
+          <button id="pauseBtn" class="pause" type="button">Pause</button>
+          <button id="resetBtn" class="reset" type="button">Reset</button>
+        </div>
+
+        <div id="rule">Loading rule...</div>
+      </div>
+
+      <div class="panel gamePanel">
+        <div class="stats">
+          <div class="stat"><div class="statName">Points</div><div class="statVal" id="points">0</div></div>
+          <div class="stat"><div class="statName">Passes</div><div class="statVal" id="passes">0</div></div>
+          <div class="stat"><div class="statName">Current rate</div><div class="statVal" id="rateNow">0.00</div></div>
+          <div class="stat"><div class="statName">Time</div><div class="statVal" id="timeLeft">2:00</div></div>
+        </div>
+
+        <button id="plusBtn" class="plus" type="button">+</button>
+
+        <div class="meterFrame"><div class="meterTrack"><div id="meter" class="meterFill"></div></div></div>
+        <div id="finishOverlay" class="finishOverlay" aria-live="polite">
+          <span class="confetti c1"></span>
+          <span class="confetti c2"></span>
+          <span class="confetti c3"></span>
+          <span class="confetti c4"></span>
+          <span class="confetti c5"></span>
+          <span class="confetti c6"></span>
+          <span class="confetti c7"></span>
+          <span class="confetti c8"></span>
+          <span class="confetti c9"></span>
+          <span class="confetti c10"></span>
+          <span class="confetti c11"></span>
+          <span class="confetti c12"></span>
+          <section id="finishMessage" class="finishMessage" role="dialog" aria-modal="true" aria-labelledby="finishResult">
+            <div class="finishTitlebar">
+              <span>Rate Game — Results</span>
+              <button id="finishCloseBtn" class="finishClose" type="button" aria-label="Return to main menu">×</button>
+            </div>
+            <div class="finishBody">
+              <span class="finishIcon" aria-hidden="true"></span>
+              <div>
+                <strong id="finishResult" class="finishResult"></strong>
+                <p id="finishDetail" class="finishDetail"></p>
+              </div>
+            </div>
+            <div class="finishFooter">
+              <span class="finishBadge" aria-hidden="true">WEB RESULT</span>
+              <button id="finishMenuBtn" class="finishMenuBtn" type="button">Return to main menu</button>
+            </div>
+          </section>
+        </div>
+        <div class="gameplayControls">
+          <button id="gameplayPauseBtn" class="gameplayPause" type="button">Pause</button>
+          <button id="gameplayUndoBtn" class="gameplayUndo" type="button">Undo</button>
+          <button id="gameplayResetBtn" class="gameplayReset" type="button">Reset</button>
+          <button id="gameplayQuitBtn" class="gameplayQuit" type="button">Quit</button>
+        </div>
+        <div id="status">Loading...</div>
+        <div id="log">No passes yet.</div>
+      </div>
+
+      <div class="panel notesPanel">
+        <label for="notes">Notes</label>
+        <textarea id="notes" spellcheck="true"></textarea>
+        <div id="notesStatus" class="noteStatus">Saved</div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
