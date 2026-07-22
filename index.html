@@ -1204,6 +1204,10 @@
       return Math.max(1, Math.floor(num("passGoal", 50, 1)));
     }
 
+    function goalProgressText(current, goal) {
+      return String(current) + "/" + String(goal);
+    }
+
     function getAudioContext() {
       var AudioContextClass = window.AudioContext || window.webkitAudioContext;
       if (!AudioContextClass) return null;
@@ -1612,8 +1616,8 @@
       var left = running ? round - (activeMs() / 1000) : round;
       var progress = running ? currentMeterProgress(activeMs()) : meterProgress;
 
-      el("passes").textContent = String(passTimes.length);
-      el("points").textContent = String(points);
+      el("passes").textContent = goalProgressText(passTimes.length, passGoal());
+      el("points").textContent = goalProgressText(points, pointGoal());
       el("rateNow").textContent = displayRate(currentRate()).toFixed(2);
       el("timeLeft").textContent = timeText(left);
       el("meter").style.width = meterPercent(progress) + "%";
@@ -1687,7 +1691,7 @@
         points = points + 1;
         pointSoundStreak = pointSoundStreak + 1;
         lastPointPassCount = passTimes.length;
-        el("points").textContent = String(points);
+        el("points").textContent = goalProgressText(points, pointGoal());
         playPointSound(pointSoundStreak);
         showPointCue();
         setStatus("POINT x" + pointSoundStreak + ". They kept " + sampleSize + " passes on rate.");
@@ -1739,7 +1743,7 @@
         pauseStartedAt = Date.now();
         setPauseButtonText("Resume");
         playPauseSound();
-        setStatus("Paused.");
+        setStatus("Paused. Double-tap Points, Passes, or Current rate to edit the goal or target rate.");
       } else {
         paused = false;
         totalPauseMs = totalPauseMs + (Date.now() - pauseStartedAt);
@@ -1748,6 +1752,76 @@
         playResumeSound();
         setStatus("Resumed.");
       }
+    }
+
+    function editPausedStat(setting) {
+      if (!running || !paused) return;
+
+      var config = {
+        points: {
+          id: "pointGoal",
+          label: "point goal",
+          value: pointGoal(),
+          min: 1,
+          integer: true
+        },
+        passes: {
+          id: "passGoal",
+          label: "passes goal",
+          value: passGoal(),
+          min: 1,
+          integer: true
+        },
+        rate: {
+          id: "targetRate",
+          label: "target rate (" + (el("rateUnit").value === "minute" ? "per minute" : "per second") + ")",
+          value: num("targetRate", 0.5, 0.01),
+          min: 0.01,
+          integer: false
+        }
+      }[setting];
+
+      if (!config) return;
+
+      var entered = window.prompt("Set " + config.label + ":", String(config.value));
+      if (entered === null) return;
+
+      var value = parseFloat(entered);
+      if (isNaN(value) || value < config.min) {
+        setStatus("Enter a " + config.label + " of at least " + config.min + ".");
+        return;
+      }
+
+      if (config.integer) value = Math.floor(value);
+      el(config.id).value = String(value);
+      updateRule();
+      refreshGameDisplay();
+      setStatus(config.label.charAt(0).toUpperCase() + config.label.slice(1) + " changed to " + value + ".");
+    }
+
+    function bindPausedStatEdit(id, setting) {
+      var node = el(id);
+      var lastTouchEndAt = 0;
+      var suppressDoubleClickUntil = 0;
+      if (!node) return;
+
+      node.addEventListener("dblclick", function() {
+        if (Date.now() < suppressDoubleClickUntil) return;
+        editPausedStat(setting);
+      });
+
+      node.addEventListener("touchend", function(event) {
+        var now = Date.now();
+        if (now - lastTouchEndAt > 400) {
+          lastTouchEndAt = now;
+          return;
+        }
+
+        lastTouchEndAt = 0;
+        event.preventDefault();
+        editPausedStat(setting);
+        suppressDoubleClickUntil = Date.now() + 500;
+      }, { passive: false });
     }
 
     function resetRound(silent) {
@@ -1849,7 +1923,7 @@
       var pointsBeforePass = points;
       updateMeterForPass(ms);
       passTimes.push(ms);
-      el("passes").textContent = String(passTimes.length);
+      el("passes").textContent = goalProgressText(passTimes.length, passGoal());
       addLog("+1 " + skillName() + " at " + timeText(ms / 1000));
       update();
 
@@ -1886,6 +1960,9 @@
       bind("gameplayUndoBtn", "click", undoLastPass);
       bind("gameplayResetBtn", "click", resetRound);
       bind("gameplayQuitBtn", "click", quitRound);
+      bindPausedStatEdit("pointsStat", "points");
+      bindPausedStatEdit("passesStat", "passes");
+      bindPausedStatEdit("rateStat", "rate");
       bind("finishCloseBtn", "click", returnToMainMenu);
       bind("finishMenuBtn", "click", returnToMainMenu);
       bind("notes", "input", queueNotesSave);
@@ -1985,9 +2062,9 @@
 
       <div class="panel gamePanel">
         <div class="stats">
-          <div class="stat"><div class="statName">Points</div><div class="statVal" id="points">0</div></div>
-          <div class="stat"><div class="statName">Passes</div><div class="statVal" id="passes">0</div></div>
-          <div class="stat"><div class="statName">Current rate</div><div class="statVal" id="rateNow">0.00</div></div>
+          <div id="pointsStat" class="stat" title="While paused, double-tap to change the point goal"><div class="statName">Points</div><div class="statVal" id="points">0</div></div>
+          <div id="passesStat" class="stat" title="While paused, double-tap to change the passes goal"><div class="statName">Passes</div><div class="statVal" id="passes">0</div></div>
+          <div id="rateStat" class="stat" title="While paused, double-tap to change the target rate"><div class="statName">Current rate</div><div class="statVal" id="rateNow">0.00</div></div>
           <div class="stat"><div class="statName">Time</div><div class="statVal" id="timeLeft">2:00</div></div>
         </div>
 
