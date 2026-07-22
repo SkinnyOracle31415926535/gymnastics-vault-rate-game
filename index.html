@@ -64,6 +64,10 @@
       border-bottom: 2px solid #f4fff1;
       border-radius: 0;
     }
+    input[data-numeric-pad] {
+      caret-color: transparent;
+      cursor: pointer;
+    }
     textarea {
       min-height: 140px;
       resize: vertical;
@@ -89,6 +93,73 @@
       min-height: 30px;
       padding: 6px;
     }
+    .numericPadOverlay {
+      align-items: center;
+      background: rgba(0, 25, 15, 0.78);
+      display: flex;
+      inset: 0;
+      justify-content: center;
+      padding: 14px;
+      position: fixed;
+      z-index: 100;
+    }
+    .numericPadOverlay[hidden] {
+      display: none;
+    }
+    .numericPad {
+      background: #b9d6b3;
+      border-top: 4px solid #f4fff1;
+      border-left: 4px solid #f4fff1;
+      border-right: 4px solid #1b3b28;
+      border-bottom: 4px solid #1b3b28;
+      box-shadow: 8px 8px 0 #06351f;
+      max-width: 390px;
+      padding: 12px;
+      width: 100%;
+    }
+    .numericPadTitle {
+      font-size: 16px;
+      font-weight: bold;
+      margin-bottom: 8px;
+    }
+    .numericPadValue {
+      background: #eef8e8;
+      border-top: 2px solid #426549;
+      border-left: 2px solid #426549;
+      border-right: 2px solid #f4fff1;
+      border-bottom: 2px solid #f4fff1;
+      font: bold 38px/1 "Courier New", monospace;
+      min-height: 56px;
+      overflow: hidden;
+      padding: 8px;
+      text-align: right;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .numericPadKeys,
+    .numericPadActions {
+      display: grid;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .numericPadKeys {
+      grid-template-columns: repeat(3, 1fr);
+    }
+    .numericPadKeys button {
+      background: #eef8e8;
+      font: bold 30px/1 "Courier New", monospace;
+      min-height: 62px;
+    }
+    .numericPadKeys button:disabled {
+      background: #9ba99a;
+      color: #526153;
+    }
+    .numericPadActions {
+      grid-template-columns: 1fr 1fr 1fr;
+    }
+    .numericPadClear { background: #d4d889; }
+    .numericPadCancel { background: #d89a89; }
+    .numericPadDone { background: #80d68a; }
     .grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -955,6 +1026,11 @@
     var audioCtx = null;
     var notesTimerId = null;
     var finishCueTimerId = null;
+    var numericPadInputId = null;
+    var numericPadBuffer = "";
+    var numericPadReplaceOnNext = false;
+    var numericPadOnSave = null;
+    var numericPadLabel = "number";
     var notesStorageKey = "gymnasticsRateGameNotes";
     var skillPresetStorageKey = "gymnasticsRateGameSkillPresets";
     var hiddenBuiltInPresetStorageKey = "gymnasticsRateGameHiddenBuiltInSkillPresets";
@@ -1202,6 +1278,101 @@
 
     function passGoal() {
       return Math.max(1, Math.floor(num("passGoal", 50, 1)));
+    }
+
+    function numericPadInput() {
+      return numericPadInputId ? el(numericPadInputId) : null;
+    }
+
+    function numericPadAllowsDecimal() {
+      var input = numericPadInput();
+      return input && input.getAttribute("data-numeric-type") === "decimal";
+    }
+
+    function refreshNumericPad() {
+      var decimalButton = el("numericPadDecimal");
+      el("numericPadValue").textContent = numericPadBuffer || "0";
+      if (decimalButton) decimalButton.disabled = !numericPadAllowsDecimal();
+    }
+
+    function openNumericPad(inputId, options) {
+      var input = el(inputId);
+      var overlay = el("numericPadOverlay");
+      if (!input || !overlay) return;
+
+      options = options || {};
+      numericPadInputId = inputId;
+      numericPadBuffer = String(input.value || "");
+      numericPadReplaceOnNext = true;
+      numericPadOnSave = options.onSave || null;
+      numericPadLabel = options.label || "number";
+      el("numericPadTitle").textContent = options.title || "Enter " + numericPadLabel;
+      overlay.hidden = false;
+      refreshNumericPad();
+    }
+
+    function closeNumericPad() {
+      var overlay = el("numericPadOverlay");
+      if (overlay) overlay.hidden = true;
+      numericPadInputId = null;
+      numericPadBuffer = "";
+      numericPadReplaceOnNext = false;
+      numericPadOnSave = null;
+      numericPadLabel = "number";
+    }
+
+    function appendNumericPadValue(key) {
+      var value = numericPadReplaceOnNext ? "" : numericPadBuffer;
+      if (key === ".") {
+        if (!numericPadAllowsDecimal() || value.indexOf(".") !== -1) return;
+        if (value === "") value = "0";
+      }
+
+      numericPadBuffer = value + key;
+      numericPadReplaceOnNext = false;
+      refreshNumericPad();
+    }
+
+    function backspaceNumericPadValue() {
+      numericPadReplaceOnNext = false;
+      numericPadBuffer = numericPadBuffer.slice(0, -1);
+      refreshNumericPad();
+    }
+
+    function clearNumericPadValue() {
+      numericPadBuffer = "";
+      numericPadReplaceOnNext = false;
+      refreshNumericPad();
+    }
+
+    function saveNumericPadValue() {
+      var input = numericPadInput();
+      var value = parseFloat(numericPadBuffer);
+      var min = input ? parseFloat(input.getAttribute("min")) : NaN;
+      var onSave = numericPadOnSave;
+
+      if (!input || isNaN(value) || (!isNaN(min) && value < min)) {
+        setStatus("Enter a valid " + numericPadLabel + (isNaN(min) ? "." : " of at least " + min + "."));
+        return;
+      }
+
+      if (input.getAttribute("data-numeric-type") === "integer") value = Math.floor(value);
+      input.value = String(value);
+      closeNumericPad();
+      updateRule();
+      if (onSave) onSave(value);
+    }
+
+    function bindNumericPadInput(id, label) {
+      bind(id, "click", function() {
+        openNumericPad(id, { title: "Set " + label, label: label });
+      });
+      bind(id, "keydown", function(event) {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          openNumericPad(id, { title: "Set " + label, label: label });
+        }
+      });
     }
 
     function goalProgressText(current, goal) {
@@ -1760,43 +1931,27 @@
       var config = {
         points: {
           id: "pointGoal",
-          label: "point goal",
-          value: pointGoal(),
-          min: 1,
-          integer: true
+          label: "point goal"
         },
         passes: {
           id: "passGoal",
-          label: "passes goal",
-          value: passGoal(),
-          min: 1,
-          integer: true
+          label: "passes goal"
         },
         rate: {
           id: "targetRate",
-          label: "target rate (" + (el("rateUnit").value === "minute" ? "per minute" : "per second") + ")",
-          value: num("targetRate", 0.5, 0.01),
-          min: 0.01,
-          integer: false
+          label: "target rate (" + (el("rateUnit").value === "minute" ? "per minute" : "per second") + ")"
         }
       }[setting];
 
       if (!config) return;
-
-      var entered = window.prompt("Set " + config.label + ":", String(config.value));
-      if (entered === null) return;
-
-      var value = parseFloat(entered);
-      if (isNaN(value) || value < config.min) {
-        setStatus("Enter a " + config.label + " of at least " + config.min + ".");
-        return;
-      }
-
-      if (config.integer) value = Math.floor(value);
-      el(config.id).value = String(value);
-      updateRule();
-      refreshGameDisplay();
-      setStatus(config.label.charAt(0).toUpperCase() + config.label.slice(1) + " changed to " + value + ".");
+      openNumericPad(config.id, {
+        title: "Set " + config.label,
+        label: config.label,
+        onSave: function(value) {
+          refreshGameDisplay();
+          setStatus(config.label.charAt(0).toUpperCase() + config.label.slice(1) + " changed to " + value + ".");
+        }
+      });
     }
 
     function bindPausedStatEdit(id, setting) {
@@ -1963,12 +2118,50 @@
       bindPausedStatEdit("pointsStat", "points");
       bindPausedStatEdit("passesStat", "passes");
       bindPausedStatEdit("rateStat", "rate");
+      bindNumericPadInput("targetRate", "target rate");
+      bindNumericPadInput("samplePasses", "sample passes");
+      bindNumericPadInput("roundMin", "round minutes");
+      bindNumericPadInput("pointGoal", "point goal");
+      bindNumericPadInput("passGoal", "passes goal");
+      bind("numericPadBackspace", "click", backspaceNumericPadValue);
+      bind("numericPadClear", "click", clearNumericPadValue);
+      bind("numericPadCancel", "click", closeNumericPad);
+      bind("numericPadDone", "click", saveNumericPadValue);
+      bind("numericPadOverlay", "click", function(event) {
+        if (event.target === el("numericPadOverlay")) closeNumericPad();
+      });
+      var numericPadKeys = document.querySelectorAll("[data-numeric-key]");
+      for (var keyIndex = 0; keyIndex < numericPadKeys.length; keyIndex++) {
+        numericPadKeys[keyIndex].addEventListener("click", function() {
+          appendNumericPadValue(this.getAttribute("data-numeric-key"));
+        });
+      }
       bind("finishCloseBtn", "click", returnToMainMenu);
       bind("finishMenuBtn", "click", returnToMainMenu);
       bind("notes", "input", queueNotesSave);
       bind("notes", "change", saveNotes);
 
       document.addEventListener("keydown", function(e) {
+        if (numericPadInputId) {
+          if (e.key >= "0" && e.key <= "9") {
+            e.preventDefault();
+            appendNumericPadValue(e.key);
+          } else if (e.key === ".") {
+            e.preventDefault();
+            appendNumericPadValue(".");
+          } else if (e.key === "Backspace") {
+            e.preventDefault();
+            backspaceNumericPadValue();
+          } else if (e.key === "Enter") {
+            e.preventDefault();
+            saveNumericPadValue();
+          } else if (e.key === "Escape") {
+            e.preventDefault();
+            closeNumericPad();
+          }
+          return;
+        }
+
         if (e.code === "Space") {
           var target = e.target;
           var tag = target && target.tagName ? target.tagName.toLowerCase() : "";
@@ -2014,7 +2207,7 @@
         <div class="grid">
           <div>
             <label for="targetRate">Target rate</label>
-            <input id="targetRate" type="number" inputmode="decimal" value="0.2" min="0.01" step="0.01">
+            <input id="targetRate" type="text" inputmode="none" value="0.2" min="0.01" step="0.01" readonly data-numeric-pad data-numeric-type="decimal" title="Tap to use the number pad">
           </div>
           <div>
             <label for="rateUnit">Rate unit</label>
@@ -2028,22 +2221,22 @@
         <div class="grid">
           <div>
             <label for="samplePasses">Sample passes</label>
-            <input id="samplePasses" type="number" inputmode="numeric" value="20" min="2" step="1">
+            <input id="samplePasses" type="text" inputmode="none" value="20" min="2" step="1" readonly data-numeric-pad data-numeric-type="integer" title="Tap to use the number pad">
           </div>
           <div>
             <label for="roundMin">Round minutes</label>
-            <input id="roundMin" type="number" inputmode="decimal" value="2" min="0.1" step="0.5">
+            <input id="roundMin" type="text" inputmode="none" value="2" min="0.1" step="0.5" readonly data-numeric-pad data-numeric-type="decimal" title="Tap to use the number pad">
           </div>
         </div>
 
         <div class="grid">
           <div>
             <label for="pointGoal">Point goal</label>
-            <input id="pointGoal" type="number" inputmode="numeric" value="5" min="1" step="1">
+            <input id="pointGoal" type="text" inputmode="none" value="5" min="1" step="1" readonly data-numeric-pad data-numeric-type="integer" title="Tap to use the number pad">
           </div>
           <div>
             <label for="passGoal">Passes goal</label>
-            <input id="passGoal" type="number" inputmode="numeric" value="50" min="1" step="1">
+            <input id="passGoal" type="text" inputmode="none" value="50" min="1" step="1" readonly data-numeric-pad data-numeric-type="integer" title="Tap to use the number pad">
           </div>
         </div>
         <div id="goalHelper" class="presetStatus">Goal helper loading...</div>
@@ -2118,6 +2311,31 @@
         <div id="notesStatus" class="noteStatus">Saved</div>
       </div>
     </div>
+  </div>
+  <div id="numericPadOverlay" class="numericPadOverlay" hidden>
+    <section class="numericPad" role="dialog" aria-modal="true" aria-labelledby="numericPadTitle">
+      <div id="numericPadTitle" class="numericPadTitle">Enter number</div>
+      <div id="numericPadValue" class="numericPadValue" aria-live="polite">0</div>
+      <div class="numericPadKeys">
+        <button type="button" data-numeric-key="1">1</button>
+        <button type="button" data-numeric-key="2">2</button>
+        <button type="button" data-numeric-key="3">3</button>
+        <button type="button" data-numeric-key="4">4</button>
+        <button type="button" data-numeric-key="5">5</button>
+        <button type="button" data-numeric-key="6">6</button>
+        <button type="button" data-numeric-key="7">7</button>
+        <button type="button" data-numeric-key="8">8</button>
+        <button type="button" data-numeric-key="9">9</button>
+        <button id="numericPadDecimal" type="button" data-numeric-key=".">.</button>
+        <button type="button" data-numeric-key="0">0</button>
+        <button id="numericPadBackspace" type="button" aria-label="Backspace">⌫</button>
+      </div>
+      <div class="numericPadActions">
+        <button id="numericPadClear" class="numericPadClear" type="button">Clear</button>
+        <button id="numericPadCancel" class="numericPadCancel" type="button">Cancel</button>
+        <button id="numericPadDone" class="numericPadDone" type="button">Done</button>
+      </div>
+    </section>
   </div>
 </body>
 </html>
