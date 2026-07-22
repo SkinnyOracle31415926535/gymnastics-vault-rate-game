@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <title>Rate Game</title>
   <style>
     * { box-sizing: border-box; }
@@ -2089,6 +2089,16 @@
     }
 
     window.addEventListener("DOMContentLoaded", function() {
+      document.addEventListener("gesturestart", function(event) {
+        event.preventDefault();
+      });
+      document.addEventListener("gesturechange", function(event) {
+        event.preventDefault();
+      });
+      document.addEventListener("touchmove", function(event) {
+        if (event.touches && event.touches.length > 1) event.preventDefault();
+      }, { passive: false });
+
       var inputs = ["skill", "targetRate", "rateUnit", "samplePasses", "roundMin", "pointGoal", "passGoal"];
       for (var i = 0; i < inputs.length; i++) {
         bind(inputs[i], "input", updateRule);
